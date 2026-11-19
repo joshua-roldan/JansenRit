@@ -113,6 +113,7 @@ def F(X_t, sigm:object):
     dx3dt = A*a*b1 - 2*a*x3 - a**2*x0
     dx4dt = A*a*(p_t + c2*b2) - 2*a*x4 - a**2*x1
     dx5dt = B*b*c4*b3 - 2*b*x5 - b**2*x2
+    
     return np.array([dx0dt, dx1dt, dx2dt, dx3dt, dx4dt, dx5dt])
 
 
