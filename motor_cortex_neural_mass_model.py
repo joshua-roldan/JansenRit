@@ -22,9 +22,13 @@ class JansenRitNeuralPopulation():
     # Each neural population consists of two blocks: 
     # 1- Postsynaptic membrane potential (PSP) block. \\ Transforms the avg. pulse density of incoming action potentials into an avg. postsynaptic membrane potential.
     # 2- Sigmoid block. \\ Transforms avg. membrane potential of a neural population into an avg. pulse density.
-    def __init__(self, sigm:object):
-        self.psp_block = None
-        self.sigm = sigm
+    def __init__(self, max_fr, r, v0):
+        self.max_fr = max_fr
+        self.r = r
+        self.v0 = v0
+
+    def set_sigmoid(self):
+        self.sigm = make_sigmoid_func(self.max_fr, self.r, self.v0)
 
 
 # Create an instance of a sigmoid function.
@@ -170,13 +174,16 @@ if __name__ == '__main__':
     # for Inhibitory interneurons.
     max_fr_IiP, r_IiP, v0_IiP = np.random.uniform(0.0, 1.0, 3)
 
-    # Initiate our neural populations.
+    # Initiate our neural populations and assign their respective sigmoid functions.
     # -Pyramidal cells.
-    PC = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_PC, r_PC, v0_PC))
+    PC = JansenRitNeuralPopulation(max_fr=max_fr_PC, r=r_PC, v0=v0_PC)
+    PC.set_sigmoid()
     # -Excitatory interneurons.
-    EiP = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_EiP, r_EiP, v0_EiP))
+    EiP = JansenRitNeuralPopulation(max_fr=max_fr_EiP, r=r_EiP, v0=v0_EiP)
+    EiP.set_sigmoid()
     # -Inhibitory interneurons.
-    IiP = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_IiP, r_IiP, v0_IiP))
+    IiP = JansenRitNeuralPopulation(max_fr=max_fr_IiP, r=r_IiP, v0=v0_IiP)
+    IiP.set_sigmoid()
 
     # Intitiate our Jansen-Rit Model.
     snn = JansenRitModel()
