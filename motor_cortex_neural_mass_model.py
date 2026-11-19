@@ -28,16 +28,14 @@ class JansenRitNeuralPopulation():
 
 # Create an instance of a sigmoid function.
 def make_sigmoid_func(max_fr, r, v0):
-    """
-    :Parameters:
+    """:Parameters:
         max_fr : maximum firing rate. 
         r      : steepness of sigmoidal transmission.
         v0     : the PSP yeilding 50% firing rate.
     """
     def sigmoid(v):
-        """
-        :Parameters:
-            v : avg. membrane potential of neural population. 
+        """:Parameters:
+            v: avg. membrane potential of neural population. 
         """
         return 2*max_fr/(1+ np.exp(r*(v0 - v)))
     return sigmoid
@@ -65,56 +63,95 @@ def forward_euler_old(T, dt, dts, vs, xs, t0, out_buffer):
     x_foward_states[:,t_idx] = x0 # \\ This is the initial state x0 at initial time t0 (also referred to as t_idx =0).
     # We iterate forward by each time step.
     for time_step in range(t0, num_time_steps+t0):
+        pass
 
-        
-def forward_euler(F:object, t0, x0, T, dt):
-    '''
-    Solves the ode dx/dt = f(t,x) using the Explicit (Foward) Euler Method.
-
+def make_integrator(T, dt):
+    """
+    Makes forward euler integrator.
     :Parameters:
-    F: Function representing the ODE // f(t,x)
-    t0: Initial time.
-    x0: Initial value of x at t0.
     T: time window to integrate over.
     dt: timestep size.
-    '''
-
+    """
     # Define parameters for (fixed step-size) integration.
     num_time_steps = int(np.round(T / dt))
-    # Define the dimension of state sapce to be 6 = (2) * (3) \\ (DEs per PSP block ) \times ( # of neural populations)
-    state_space_dim = 2 * 3 
-    # Initialize foward state matrix. \\ There is a state for each time step, ie x0, x1, x2, ...
-    X = np.zeros((state_space_dim, num_time_steps)) # \\ The columns are the state vectors at time t.
+        
+    def forward_euler(F:object, t0, x0):
+        '''
+        Solves the ode dx/dt = f(t,x) using the Explicit (Foward) Euler Method.
 
-    # Solve IVP for forward Euler method.
-    # Initialize the time step index. \\ Note that it is not necessarily t0=0. 
-    n = 0 
-    X[:,n] = x0 # \\ This is the initial state x0 at initial time t0 (also referred to as n =0).
-    # We iterate forward by each time step.
-    for t_step in np.arange(start=t0, stop=t0+ dt*num_time_steps, step=dt):
-        # Next state vector equals current state vector x_i+1 plus timestep \times derivative at x_i
-        # X[:, t_idx+1] = (np.eye(state_space_dim) + dt*A) @ X[:, t_idx] \\ alternative formulation using matrix multiplication. "A" is the system matrix.
-        X[:, n+1] = X[:, n] + dt*F(t_step, X[:, n])
+        :Parameters:
+        F: Function representing the ODE // f(t,x)
+        t0: Initial time.
+        x0: Initial value of x at t0.
+
+        :Output: 
+        X : matrix of state vectors for each timestep.
+        '''
+        # Define the dimension of state sapce to be 6 = (2) * (3) \\ (DEs per PSP block ) \times ( # of neural populations)
+        state_space_dim = 2 * 3 
+        # Initialize foward state matrix. \\ There is a state for each time step, ie x0, x1, x2, ...
+        X = np.zeros((state_space_dim, num_time_steps)) # \\ The columns are the state vectors at time t.
+
+        # Solve IVP for forward Euler method.
+        # Initialize the time step index. \\ Note that it is not necessarily t0=0. 
+        n = 0 
+        X[:,n] = x0 # \\ This is the initial state x0 at initial time t0 (also referred to as n =0).
+        # We iterate forward by each time step.
+        for t_step in np.arange(start=t0, stop=t0+ dt*num_time_steps, step=dt):
+            # Next state vector equals current state vector x_i+1 plus timestep \times derivative at x_i
+            # X[:, t_idx+1] = (np.eye(state_space_dim) + dt*A) @ X[:, t_idx] \\ alternative formulation using matrix multiplication. "A" is the system matrix.
+            X[:, n+1] = X[:, n] + dt*F(t_step, X[:, n])
+        
+        return X
+
+    return forward_euler
 
 
-def F(X_t, sigm:object):
-    # Decompose the state vector into its components.
-    x0, x1, x2, x3, x4, x5 = X_t
+def make_ode_func(sigm0, sigm1, sigm2, A, B, a, b, c1, c2, c3, c4):
+    """
+    Makes a function with hyperparams selected.
 
-    # Compute the sigmoidal outputs of each neural population.
-    b1 = sigm(x1 - x2)
-    b2 = sigm(c1*x0)
-    b3 = sigm(c3*x0)
+    ::hyperparameters::
+    sigm0/1/2: sigmoid function for the three populations PC, EiP, IiP
+    A: maximum amplitude of excitatory PSP (EPSP).
+    B: maximum amplitude of inhibitory PSP (IPSP).
+    a: for EPSP, lumped representation of the sum of the reciprocal of the time constant of passive membrande and all other spatially distributed delays in the dendritic network.
+    b: for IPSP, ...
+    c1/2/3/4: connectivity constants.
+    """
 
-    # Compute the derivatives of the state vector components.
-    dx0dt = x3
-    dx1dt = x4
-    dx2dt = x5
-    dx3dt = A*a*b1 - 2*a*x3 - a**2*x0
-    dx4dt = A*a*(p_t + c2*b2) - 2*a*x4 - a**2*x1
-    dx5dt = B*b*c4*b3 - 2*b*x5 - b**2*x2
-    
-    return np.array([dx0dt, dx1dt, dx2dt, dx3dt, dx4dt, dx5dt])
+    def F(t_step, Y_t, p_t=0):
+        """ 
+        Evaluates the odes function given a state vector.
+
+        ::Parameters::
+        t_step : actual time t.
+        Y_t : state vector at time step t.
+        p_t : (?) external stimuli.
+        """
+
+        # Decompose the state vector Y_t into its components y0, y1, ... .
+        # y0, y1, y2 represent the outputs (membrane potential) of the three PSP blocks - pyramidal, EiP, IiP, respectively.
+        # y3, y4, y5 represent the change of these outputs.
+        y0, y1, y2, y3, y4, y5 = Y_t
+
+        # Compute the sigmoidal outputs of each neural population.
+        # x0, x1, x2 represent the inputs (firing rates) into the three PSP blocks.
+        x0 = sigm0(y1 - y2)
+        x1 = sigm1(c1*y0)
+        x2 = sigm2(c3*y0)
+
+        # Compute the derivatives of the state vector components.
+        dy0dt = y3
+        dy1dt = y4
+        dy2dt = y5
+        dy3dt = A*a*x0 - 2*a*y3 - a**2*y0
+        dy4dt = A*a*(p_t + c2*x1) - 2*a*y4 - a**2*y1
+        dy5dt = B*b*c4*x2 - 2*b*y5 - b**2*y2
+        
+        return np.array([dy0dt, dy1dt, dy2dt, dy3dt, dy4dt, dy5dt])
+
+    return F
 
 
 
@@ -122,23 +159,45 @@ def F(X_t, sigm:object):
 
 if __name__ == '__main__':
 
+    # Assign the hyperparameter values ...
+    # for the pyramidal cells.
+    max_fr_PC, r_PC, v0_PC = np.random.uniform(0.0, 1.0, 3) # gives three random values between 0 and 1.
+    # for Excitatory interneurons.
+    max_fr_EiP, r_EiP, v0_EiP = np.random.uniform(0.0, 1.0, 3)
+    # for Inhibitory interneurons.
+    max_fr_IiP, r_IiP, v0_IiP = np.random.uniform(0.0, 1.0, 3)
+
     # Initiate our neural populations.
     # -Pyramidal cells.
-    snn1 = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_1, r_1, v0_1))
-    # -Excitatory cells.
-    snn2 = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_2, r_2, v0_2))
-    # -Inhibitory cells.
-    snn3 = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_3, r_3, v0_3))
+    PC = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_PC, r_PC, v0_PC))
+    # -Excitatory interneurons.
+    EiP = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_EiP, r_EiP, v0_EiP))
+    # -Inhibitory interneurons.
+    IiP = JansenRitNeuralPopulation(sigm=make_sigmoid_func(max_fr_IiP, r_IiP, v0_IiP))
 
     # Intitiate our Jansen-Rit Model.
     snn = JansenRitModel()
     print(list(snn.nodes))
     print(list(snn.edges))
+    state_space_dim = 6
 
     # Assign connectivity constants.
     [c1, c2, c3, c4] = np.random.uniform(0.0, 1.0, 4)
-    print([c1, c2, c3, c4])
     snn['pyramidal']['excitatory']['connectivity'] = c1
     snn['pyramidal']['inhibitory']['connectivity'] = c3
     snn['excitatory']['pyramidal']['connectivity'] = c2
     snn['inhibitory']['pyramidal']['connectivity'] = c4
+
+    # Assign the max ampltitudes and (?) time delays.
+    A, B, a, b = np.random.uniform(0.0, 1.0, 4)
+    # Formulate the ode.
+    F = make_ode_func(sigm0=PC.sigm, sigm1=EiP.sigm, sigm2=IiP.sigm, A=A, B=B, a=a, b=b, c1=c1, c2=c2, c3=c3, c4=c4)
+    
+    # Assign hyperparams for integrator.
+    T = 10 # Entire time window to integrate over.
+    dt = 0.1 # size of time steps.
+    # Instantiate the forward euler method.
+    forward_euler = make_integrator(T, dt)
+
+    # Run the forward euler method and return state space trajectory.
+    Y = forward_euler(F, t0=0, x0=np.zeros(state_space_dim,))
