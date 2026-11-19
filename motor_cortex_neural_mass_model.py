@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 import itertools
 import random
+import pandas as pd
 
 
 """ ------- Description -------- """
@@ -97,10 +98,12 @@ def make_integrator(T, dt):
         n = 0 
         X[:,n] = x0 # \\ This is the initial state x0 at initial time t0 (also referred to as n =0).
         # We iterate forward by each time step.
-        for t_step in np.arange(start=t0, stop=t0+ dt*num_time_steps, step=dt):
+        for t_step in np.arange(start=t0, stop=t0+ dt*(num_time_steps-1), step=dt):
             # Next state vector equals current state vector x_i+1 plus timestep \times derivative at x_i
             # X[:, t_idx+1] = (np.eye(state_space_dim) + dt*A) @ X[:, t_idx] \\ alternative formulation using matrix multiplication. "A" is the system matrix.
             X[:, n+1] = X[:, n] + dt*F(t_step, X[:, n])
+            # Increment the time step index.
+            n += 1; print(f"timestep: {n} / {num_time_steps} completed.")
         
         return X
 
@@ -182,14 +185,14 @@ if __name__ == '__main__':
     state_space_dim = 6
 
     # Assign connectivity constants.
-    [c1, c2, c3, c4] = np.random.uniform(0.0, 1.0, 4)
+    [c1, c2, c3, c4] = np.random.uniform(0.1, 1.0, 4)
     snn['pyramidal']['excitatory']['connectivity'] = c1
     snn['pyramidal']['inhibitory']['connectivity'] = c3
     snn['excitatory']['pyramidal']['connectivity'] = c2
     snn['inhibitory']['pyramidal']['connectivity'] = c4
 
     # Assign the max ampltitudes and (?) time delays.
-    A, B, a, b = np.random.uniform(0.0, 1.0, 4)
+    A, B, a, b = np.random.uniform(0.1, 1.0, 4)
     # Formulate the ode.
     F = make_ode_func(sigm0=PC.sigm, sigm1=EiP.sigm, sigm2=IiP.sigm, A=A, B=B, a=a, b=b, c1=c1, c2=c2, c3=c3, c4=c4)
     
@@ -201,3 +204,4 @@ if __name__ == '__main__':
 
     # Run the forward euler method and return state space trajectory.
     Y = forward_euler(F, t0=0, x0=np.zeros(state_space_dim,))
+    print(pd.DataFrame(Y))
