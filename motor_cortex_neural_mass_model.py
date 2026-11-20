@@ -214,7 +214,9 @@ if __name__ == '__main__':
 
     # Run the forward euler method and return state space trajectory.
     t0 = 0 # initial time.
-    Y = forward_euler(F, t0, x0=np.zeros(state_space_dim,))
+    #Y_0 = np.zeros(state_space_dim,) # initial state vector.
+    Y_0 = np.random.uniform(0.0, 1.0, state_space_dim) # initial state vector.
+    Y = forward_euler(F, t0, x0=Y_0)
     print(pd.DataFrame(Y))
 
 
